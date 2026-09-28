@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🚦 Radar Inteligente</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ================= CABEÇALHO ================= -->
+  <header class="topbar">
+    <div class="logo">
+      <span class="logo-icon">🚦</span>
+      <div class="logo-text">
+        <h1>RADAR INTELIGENTE</h1>
+        <p>Sistema de Monitoramento de Velocidade</p>
+      </div>
+    </div>
+
+    <div class="connection">
+      <span id="statusDot" class="status-dot offline"></span>
+      <span id="statusText" class="status-text">Desconectado</span>
+      <button id="connectBtn" class="btn-connect">🔌 Conectar Arduino</button>
+    </div>
+  </header>
+
+  <!-- ================= PAINEL PRINCIPAL ================= -->
+  <main class="container">
+
+    <!-- Cartões de destaque -->
+    <section class="cards">
+
+      <div class="card card-speed">
+        <div class="card-label">VELOCIDADE ATUAL</div>
+        <div class="card-value">
+          <span id="currentSpeed">0.0</span>
+          <span class="unit">m/s</span>
+        </div>
+        <div class="card-sub">
+          <span id="currentKmh">0.0</span> km/h
+        </div>
+        <div class="speed-bar">
+          <div id="speedBarFill" class="speed-bar-fill"></div>
+        </div>
+      </div>
+
+      <div class="card card-record">
+        <div class="card-label">🏆 RECORDE</div>
+        <div class="card-value">
+          <span id="recordSpeed">0.0</span>
+          <span class="unit">m/s</span>
+        </div>
+        <div class="card-sub">
+          <span id="recordKmh">0.0</span> km/h
+        </div>
+      </div>
+
+      <div class="card card-counter">
+        <div class="card-label">📊 MEDIÇÕES</div>
+        <div class="card-value">
+          <span id="counter">0</span>
+        </div>
+        <div class="card-sub">veículos detectados</div>
+      </div>
+
+      <div class="card card-avg">
+        <div class="card-label">📈 MÉDIA</div>
+        <div class="card-value">
+          <span id="avgSpeed">0.0</span>
+          <span class="unit">m/s</span>
+        </div>
+        <div class="card-sub">
+          <span id="avgKmh">0.0</span> km/h
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Alerta de excesso de velocidade -->
+    <div id="alertBox" class="alert-box hidden">
+      🚨 EXCESSO DE VELOCIDADE! 🚨
+    </div>
+
+    <!-- Gráfico -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>📈 Velocidade ao longo do tempo</h2>
+        <div class="panel-actions">
+          <button id="clearBtn" class="btn-small">Limpar dados</button>
+        </div>
+      </div>
+      <canvas id="speedChart" width="1000" height="280"></canvas>
+    </section>
+
+    <!-- Histórico -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>📋 Histórico de medições</h2>
+        <div class="panel-actions">
+          <span id="historyCount" class="badge">0 registros</span>
+        </div>
+      </div>
+      <div class="history-wrapper">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Velocidade (m/s)</th>
+              <th>Velocidade (km/h)</th>
+              <th>Tempo (s)</th>
+              <th>Distância (m)</th>
+              <th>Hora</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr class="empty-row">
+              <td colspan="6">Nenhuma medição ainda. Conecte o Arduino e passe um carrinho!</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>🚦 Radar Inteligente — Projeto escolar com Arduino UNO + Web Serial API</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
