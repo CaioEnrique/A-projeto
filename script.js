@@ -1,6 +1,6 @@
 /* ============================================================
    RADAR INTELIGENTE - Web Serial API
-   (tudo em km/h: cards, grafico, eixo, alerta)
+   (km/h em destaque, m/s secundario, unidades dinamicas)
    ============================================================ */
 
 // ==================== ESTADO GLOBAL ====================
@@ -9,32 +9,42 @@ let reader = null;
 let keepReading = true;
 
 let historico = [];
-let velocidadeMaxima = 0;       // em km/h
-let velocidadeMaximaKmh = 0;    // em km/h (mesma coisa, mas mantenho por compatibilidade)
-let somaVelocidades = 0;        // em km/h
+let velocidadeMaximaKmh = 0;
+let somaVelocidadesKmh  = 0;
 
-// Ajuste se quiser o alerta de excesso de velocidade
-const LIMITE_VELOCIDADE_KMH   = 45.0;   // km/h (equivale a ~12.5 m/s)
-const MAX_VELOCIDADE_GRAFICO  = 70.0;   // km/h (escala do grafico)
+// Ajustes
+const LIMITE_VELOCIDADE_KMH   = 45.0;   // km/h — alerta
+const MAX_VELOCIDADE_GRAFICO  = 70.0;   // km/h — escala do grafico
 
 // ==================== ELEMENTOS DOM ====================
-const connectBtn   = document.getElementById('connectBtn');
-const statusDot    = document.getElementById('statusDot');
-const statusText   = document.getElementById('statusText');
-const currentSpeed = document.getElementById('currentSpeed'); // km/h (destaque)
-const currentKmh   = document.getElementById('currentKmh');   // m/s (secundario)
-const recordSpeed  = document.getElementById('recordSpeed');  // km/h (destaque)
-const recordKmh    = document.getElementById('recordKmh');    // m/s (secundario)
-const counterEl    = document.getElementById('counter');
-const avgSpeed     = document.getElementById('avgSpeed');     // km/h (destaque)
-const avgKmh       = document.getElementById('avgKmh');       // m/s (secundario)
-const speedBarFill = document.getElementById('speedBarFill');
-const alertBox     = document.getElementById('alertBox');
-const historyBody  = document.getElementById('historyBody');
-const historyCount = document.getElementById('historyCount');
-const clearBtn     = document.getElementById('clearBtn');
-const canvas       = document.getElementById('speedChart');
-const ctx          = canvas.getContext('2d');
+const connectBtn          = document.getElementById('connectBtn');
+const statusDot           = document.getElementById('statusDot');
+const statusText          = document.getElementById('statusText');
+
+const currentSpeed        = document.getElementById('currentSpeed');
+const currentSpeedUnit    = document.getElementById('currentSpeedUnit');
+const currentSecondary    = document.getElementById('currentSecondary');
+const currentSecondaryUnit= document.getElementById('currentSecondaryUnit');
+
+const recordSpeed         = document.getElementById('recordSpeed');
+const recordSpeedUnit     = document.getElementById('recordSpeedUnit');
+const recordSecondary     = document.getElementById('recordSecondary');
+const recordSecondaryUnit = document.getElementById('recordSecondaryUnit');
+
+const counterEl           = document.getElementById('counter');
+
+const avgSpeed            = document.getElementById('avgSpeed');
+const avgSpeedUnit        = document.getElementById('avgSpeedUnit');
+const avgSecondary        = document.getElementById('avgSecondary');
+const avgSecondaryUnit    = document.getElementById('avgSecondaryUnit');
+
+const speedBarFill        = document.getElementById('speedBarFill');
+const alertBox            = document.getElementById('alertBox');
+const historyBody         = document.getElementById('historyBody');
+const historyCount        = document.getElementById('historyCount');
+const clearBtn            = document.getElementById('clearBtn');
+const canvas              = document.getElementById('speedChart');
+const ctx                 = canvas.getContext('2d');
 
 // ==================== VERIFICACAO DE SUPORTE ====================
 if (!('serial' in navigator)) {
@@ -129,7 +139,6 @@ async function lerSerial() {
 function processarLinha(linha) {
   if (!linha) return;
 
-  // Formato do Arduino: s=0.0140  m/s=10.71  km/h=38.57
   const match = linha.match(/s=([\d.]+)\s+m\/s=([\d.]+)\s+km\/h=([\d.]+)/);
 
   if (!match) {
@@ -156,39 +165,51 @@ function adicionarMedicao(tempoS, velocidadeMs, velocidadeKmh) {
   };
 
   historico.push(medicao);
-  somaVelocidades += velocidadeKmh;   // agora soma em km/h
+  somaVelocidadesKmh += velocidadeKmh;
 
-  if (velocidadeKmh > velocidadeMaxima) {
-    velocidadeMaxima = velocidadeKmh;
+  if (velocidadeKmh > velocidadeMaximaKmh) {
     velocidadeMaximaKmh = velocidadeKmh;
   }
 
-  // ---- Atualiza cards ----
-  currentSpeed.textContent = velocidadeKmh.toFixed(1);                              // km/h (destaque)
-  currentKmh.textContent   = velocidadeMs.toFixed(1);                               // m/s (secundario)
-  recordSpeed.textContent  = velocidadeMaximaKmh.toFixed(1);                        // km/h
-  recordKmh.textContent    = (velocidadeMaximaKmh / 3.6).toFixed(1);                // m/s
-  counterEl.textContent    = historico.length;
-  avgSpeed.textContent     = (somaVelocidades / historico.length).toFixed(1);       // km/h
-  avgKmh.textContent       = ((somaVelocidades / historico.length) / 3.6).toFixed(1); // m/s
+  // ---------- CARD VELOCIDADE ATUAL ----------
+  currentSpeed.textContent     = velocidadeKmh.toFixed(1);
+  currentSpeedUnit.textContent = 'km/h';
+  currentSecondary.textContent     = velocidadeMs.toFixed(1);
+  currentSecondaryUnit.textContent = 'm/s';
 
-  // ---- Barra de velocidade (agora em km/h) ----
+  // ---------- CARD RECORDE ----------
+  recordSpeed.textContent     = velocidadeMaximaKmh.toFixed(1);
+  recordSpeedUnit.textContent = 'km/h';
+  recordSecondary.textContent     = (velocidadeMaximaKmh / 3.6).toFixed(1);
+  recordSecondaryUnit.textContent = 'm/s';
+
+  // ---------- CONTADOR ----------
+  counterEl.textContent = historico.length;
+
+  // ---------- CARD MEDIA ----------
+  const mediaKmh = somaVelocidadesKmh / historico.length;
+  avgSpeed.textContent     = mediaKmh.toFixed(1);
+  avgSpeedUnit.textContent = 'km/h';
+  avgSecondary.textContent     = (mediaKmh / 3.6).toFixed(1);
+  avgSecondaryUnit.textContent = 'm/s';
+
+  // ---------- BARRA ----------
   const pct = Math.min((velocidadeKmh / MAX_VELOCIDADE_GRAFICO) * 100, 100);
   speedBarFill.style.width = pct + '%';
 
-  // ---- Alerta (agora em km/h) ----
+  // ---------- ALERTA ----------
   if (velocidadeKmh >= LIMITE_VELOCIDADE_KMH) {
     alertBox.classList.remove('hidden');
     setTimeout(() => alertBox.classList.add('hidden'), 3000);
   }
 
-  // ---- Tabela ----
+  // ---------- TABELA ----------
   adicionarLinhaTabela(medicao);
 
-  // ---- Grafico ----
+  // ---------- GRAFICO ----------
   desenharGrafico();
 
-  // ---- Contador ----
+  // ---------- CONTADOR DE REGISTROS ----------
   historyCount.textContent = historico.length + ' registros';
 }
 
@@ -200,7 +221,6 @@ function adicionarLinhaTabela(m) {
   const tr = document.createElement('tr');
   tr.className = 'new-row';
 
-  // Cores de acordo com a velocidade em km/h
   let classeVel = 'speed-slow';
   if (m.velocidadeKmh >= 55) classeVel = 'speed-fast';
   else if (m.velocidadeKmh >= 30) classeVel = 'speed-mid';
@@ -217,7 +237,7 @@ function adicionarLinhaTabela(m) {
   historyBody.insertBefore(tr, historyBody.firstChild);
 }
 
-// ==================== GRAFICO (agora em km/h) ====================
+// ==================== GRAFICO ====================
 function desenharGrafico() {
   const W = canvas.width;
   const H = canvas.height;
@@ -230,7 +250,7 @@ function desenharGrafico() {
   const areaW = W - pad.left - pad.right;
   const areaH = H - pad.top - pad.bottom;
 
-  // ---- Grid horizontal ----
+  // ---- Grid ----
   ctx.strokeStyle = '#1f2937';
   ctx.lineWidth = 1;
   ctx.font = '11px monospace';
@@ -265,7 +285,7 @@ function desenharGrafico() {
     v: m.velocidadeKmh
   }));
 
-  // ---- Area preenchida ----
+  // ---- Area ----
   const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + areaH);
   grad.addColorStop(0, 'rgba(255, 43, 43, 0.35)');
   grad.addColorStop(1, 'rgba(255, 43, 43, 0)');
@@ -298,7 +318,7 @@ function desenharGrafico() {
     ctx.fill();
   }
 
-  // ---- Ultimo valor em destaque ----
+  // ---- Ultimo ----
   const ultimo = pontos[pontos.length - 1];
   ctx.beginPath();
   ctx.arc(ultimo.x, ultimo.y, 7, 0, Math.PI * 2);
@@ -313,17 +333,26 @@ clearBtn.addEventListener('click', () => {
   if (!confirm('Apagar todo o histórico de medições?')) return;
 
   historico = [];
-  velocidadeMaxima = 0;
   velocidadeMaximaKmh = 0;
-  somaVelocidades = 0;
+  somaVelocidadesKmh  = 0;
 
-  currentSpeed.textContent = '0.0';
-  currentKmh.textContent   = '0.0';
-  recordSpeed.textContent  = '0.0';
-  recordKmh.textContent    = '0.0';
-  counterEl.textContent    = '0';
-  avgSpeed.textContent     = '0.0';
-  avgKmh.textContent       = '0.0';
+  currentSpeed.textContent         = '0.0';
+  currentSpeedUnit.textContent     = 'km/h';
+  currentSecondary.textContent     = '0.0';
+  currentSecondaryUnit.textContent = 'm/s';
+
+  recordSpeed.textContent          = '0.0';
+  recordSpeedUnit.textContent      = 'km/h';
+  recordSecondary.textContent      = '0.0';
+  recordSecondaryUnit.textContent  = 'm/s';
+
+  counterEl.textContent = '0';
+
+  avgSpeed.textContent             = '0.0';
+  avgSpeedUnit.textContent         = 'km/h';
+  avgSecondary.textContent         = '0.0';
+  avgSecondaryUnit.textContent     = 'm/s';
+
   speedBarFill.style.width = '0%';
 
   historyBody.innerHTML = `
