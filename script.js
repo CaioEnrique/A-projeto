@@ -16,52 +16,102 @@ let somaVelocidadesKmh  = 0;
 const LIMITE_VELOCIDADE_KMH   = 45.0;   // km/h — alerta
 const MAX_VELOCIDADE_GRAFICO  = 70.0;   // km/h — escala do grafico
 
-// ==================== ELEMENTOS DOM ====================
-const connectBtn          = document.getElementById('connectBtn');
-const statusDot           = document.getElementById('statusDot');
-const statusText          = document.getElementById('statusText');
+// ==================== ELEMENTOS DOM (preenchidos no load) ====================
+let connectBtn, statusDot, statusText;
+let currentSpeed, currentSpeedUnit, currentSecondary, currentSecondaryUnit;
+let recordSpeed, recordSpeedUnit, recordSecondary, recordSecondaryUnit;
+let counterEl;
+let avgSpeed, avgSpeedUnit, avgSecondary, avgSecondaryUnit;
+let speedBarFill, alertBox, historyBody, historyCount, clearBtn;
+let canvas, ctx;
 
-const currentSpeed        = document.getElementById('currentSpeed');
-const currentSpeedUnit    = document.getElementById('currentSpeedUnit');
-const currentSecondary    = document.getElementById('currentSecondary');
-const currentSecondaryUnit= document.getElementById('currentSecondaryUnit');
+// ==================== INICIALIZACAO ====================
+window.addEventListener('load', () => {
+  console.log('🔄 Iniciando Radar Inteligente...');
 
-const recordSpeed         = document.getElementById('recordSpeed');
-const recordSpeedUnit     = document.getElementById('recordSpeedUnit');
-const recordSecondary     = document.getElementById('recordSecondary');
-const recordSecondaryUnit = document.getElementById('recordSecondaryUnit');
+  // Pega todos os elementos
+  connectBtn           = document.getElementById('connectBtn');
+  statusDot            = document.getElementById('statusDot');
+  statusText           = document.getElementById('statusText');
 
-const counterEl           = document.getElementById('counter');
+  currentSpeed         = document.getElementById('currentSpeed');
+  currentSpeedUnit     = document.getElementById('currentSpeedUnit');
+  currentSecondary     = document.getElementById('currentSecondary');
+  currentSecondaryUnit = document.getElementById('currentSecondaryUnit');
 
-const avgSpeed            = document.getElementById('avgSpeed');
-const avgSpeedUnit        = document.getElementById('avgSpeedUnit');
-const avgSecondary        = document.getElementById('avgSecondary');
-const avgSecondaryUnit    = document.getElementById('avgSecondaryUnit');
+  recordSpeed          = document.getElementById('recordSpeed');
+  recordSpeedUnit      = document.getElementById('recordSpeedUnit');
+  recordSecondary      = document.getElementById('recordSecondary');
+  recordSecondaryUnit  = document.getElementById('recordSecondaryUnit');
 
-const speedBarFill        = document.getElementById('speedBarFill');
-const alertBox            = document.getElementById('alertBox');
-const historyBody         = document.getElementById('historyBody');
-const historyCount        = document.getElementById('historyCount');
-const clearBtn            = document.getElementById('clearBtn');
-const canvas              = document.getElementById('speedChart');
-const ctx                 = canvas.getContext('2d');
+  counterEl            = document.getElementById('counter');
 
-// ==================== VERIFICACAO DE SUPORTE ====================
-if (!('serial' in navigator)) {
-  connectBtn.disabled = true;
-  connectBtn.textContent = '❌ Navegador sem suporte';
-  statusText.textContent = 'Use Chrome ou Edge';
-}
+  avgSpeed             = document.getElementById('avgSpeed');
+  avgSpeedUnit         = document.getElementById('avgSpeedUnit');
+  avgSecondary         = document.getElementById('avgSecondary');
+  avgSecondaryUnit     = document.getElementById('avgSecondaryUnit');
 
-// ==================== CONECTAR / DESCONECTAR ====================
-connectBtn.addEventListener('click', async () => {
-  if (port) {
-    await desconectar();
-  } else {
-    await conectar();
+  speedBarFill         = document.getElementById('speedBarFill');
+  alertBox             = document.getElementById('alertBox');
+  historyBody          = document.getElementById('historyBody');
+  historyCount         = document.getElementById('historyCount');
+  clearBtn             = document.getElementById('clearBtn');
+  canvas               = document.getElementById('speedChart');
+
+  // Verifica se tudo foi encontrado
+  const faltando = [];
+  if (!connectBtn) faltando.push('connectBtn');
+  if (!currentSpeed) faltando.push('currentSpeed');
+  if (!currentSpeedUnit) faltando.push('currentSpeedUnit');
+  if (!currentSecondary) faltando.push('currentSecondary');
+  if (!currentSecondaryUnit) faltando.push('currentSecondaryUnit');
+  if (!recordSpeed) faltando.push('recordSpeed');
+  if (!recordSpeedUnit) faltando.push('recordSpeedUnit');
+  if (!recordSecondary) faltando.push('recordSecondary');
+  if (!recordSecondaryUnit) faltando.push('recordSecondaryUnit');
+  if (!avgSpeed) faltando.push('avgSpeed');
+  if (!avgSpeedUnit) faltando.push('avgSpeedUnit');
+  if (!avgSecondary) faltando.push('avgSecondary');
+  if (!avgSecondaryUnit) faltando.push('avgSecondaryUnit');
+  if (!canvas) faltando.push('speedChart');
+  if (!historyBody) faltando.push('historyBody');
+
+  if (faltando.length > 0) {
+    console.error('❌ Elementos não encontrados no HTML:', faltando);
+    return;
   }
+
+  ctx = canvas.getContext('2d');
+
+  // Verifica suporte ao Web Serial
+  if (!('serial' in navigator)) {
+    connectBtn.disabled = true;
+    connectBtn.textContent = '❌ Navegador sem suporte';
+    statusText.textContent = 'Use Chrome ou Edge';
+  }
+
+  // Eventos
+  connectBtn.addEventListener('click', async () => {
+    if (port) {
+      await desconectar();
+    } else {
+      await conectar();
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (historico.length === 0) return;
+    if (!confirm('Apagar todo o histórico de medições?')) return;
+    limparTudo();
+  });
+
+  // Desenha o grafico vazio inicial
+  desenharGrafico();
+
+  console.log('✅ Radar Inteligente pronto');
 });
 
+// ==================== CONECTAR / DESCONECTAR ====================
 async function conectar() {
   try {
     port = await navigator.serial.requestPort();
@@ -131,11 +181,11 @@ async function lerSerial() {
   } catch (err) {
     if (keepReading) console.error('Erro na leitura:', err);
   } finally {
-    reader.releaseLock();
+    if (reader) reader.releaseLock();
   }
 }
 
-// ==================== PROCESSAR LINHA RECEBIDA ====================
+// ==================== PROCESSAR LINHA ====================
 function processarLinha(linha) {
   if (!linha) return;
 
@@ -239,6 +289,11 @@ function adicionarLinhaTabela(m) {
 
 // ==================== GRAFICO ====================
 function desenharGrafico() {
+  if (!ctx || !canvas) {
+    console.warn('⚠️ Canvas nao disponivel');
+    return;
+  }
+
   const W = canvas.width;
   const H = canvas.height;
   const pad = { top: 20, right: 20, bottom: 30, left: 55 };
@@ -327,11 +382,7 @@ function desenharGrafico() {
 }
 
 // ==================== LIMPAR ====================
-clearBtn.addEventListener('click', () => {
-  if (historico.length === 0) return;
-
-  if (!confirm('Apagar todo o histórico de medições?')) return;
-
+function limparTudo() {
   historico = [];
   velocidadeMaximaKmh = 0;
   somaVelocidadesKmh  = 0;
@@ -363,7 +414,4 @@ clearBtn.addEventListener('click', () => {
   historyCount.textContent = '0 registros';
 
   desenharGrafico();
-});
-
-// ==================== INICIAL ====================
-desenharGrafico();
+}
