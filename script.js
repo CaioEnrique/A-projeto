@@ -1,5 +1,6 @@
 /* ============================================================
    RADAR INTELIGENTE - Web Serial API
+   (tudo em km/h: cards, grafico, eixo, alerta)
    ============================================================ */
 
 // ==================== ESTADO GLOBAL ====================
@@ -8,25 +9,25 @@ let reader = null;
 let keepReading = true;
 
 let historico = [];
-let velocidadeMaxima = 0;
-let velocidadeMaximaKmh = 0;
-let somaVelocidades = 0;
+let velocidadeMaxima = 0;       // em km/h
+let velocidadeMaximaKmh = 0;    // em km/h (mesma coisa, mas mantenho por compatibilidade)
+let somaVelocidades = 0;        // em km/h
 
-// Ajuste esse valor se quiser o alerta de excesso de velocidade
-const LIMITE_VELOCIDADE_MS = 12.0;   // m/s
-const MAX_VELOCIDADE_GRAFICO = 20.0; // m/s (para escala do grafico)
+// Ajuste se quiser o alerta de excesso de velocidade
+const LIMITE_VELOCIDADE_KMH   = 45.0;   // km/h (equivale a ~12.5 m/s)
+const MAX_VELOCIDADE_GRAFICO  = 70.0;   // km/h (escala do grafico)
 
 // ==================== ELEMENTOS DOM ====================
 const connectBtn   = document.getElementById('connectBtn');
 const statusDot    = document.getElementById('statusDot');
 const statusText   = document.getElementById('statusText');
-const currentSpeed = document.getElementById('currentSpeed');
-const currentKmh   = document.getElementById('currentKmh');
-const recordSpeed  = document.getElementById('recordSpeed');
-const recordKmh    = document.getElementById('recordKmh');
+const currentSpeed = document.getElementById('currentSpeed'); // km/h (destaque)
+const currentKmh   = document.getElementById('currentKmh');   // m/s (secundario)
+const recordSpeed  = document.getElementById('recordSpeed');  // km/h (destaque)
+const recordKmh    = document.getElementById('recordKmh');    // m/s (secundario)
 const counterEl    = document.getElementById('counter');
-const avgSpeed     = document.getElementById('avgSpeed');
-const avgKmh       = document.getElementById('avgKmh');
+const avgSpeed     = document.getElementById('avgSpeed');     // km/h (destaque)
+const avgKmh       = document.getElementById('avgKmh');       // m/s (secundario)
 const speedBarFill = document.getElementById('speedBarFill');
 const alertBox     = document.getElementById('alertBox');
 const historyBody  = document.getElementById('historyBody');
@@ -110,9 +111,8 @@ async function lerSerial() {
 
       buffer += value;
 
-      // Processa linha por linha
       let linhas = buffer.split('\n');
-      buffer = linhas.pop(); // guarda o resto incompleto
+      buffer = linhas.pop();
 
       for (const linha of linhas) {
         processarLinha(linha.trim());
@@ -129,8 +129,7 @@ async function lerSerial() {
 function processarLinha(linha) {
   if (!linha) return;
 
-  // Formato esperado do Arduino:
-  // s=0.0140  m/s=10.71  km/h=38.57
+  // Formato do Arduino: s=0.0140  m/s=10.71  km/h=38.57
   const match = linha.match(/s=([\d.]+)\s+m\/s=([\d.]+)\s+km\/h=([\d.]+)/);
 
   if (!match) {
@@ -138,7 +137,7 @@ function processarLinha(linha) {
     return;
   }
 
-  const tempoS    = parseFloat(match[1]);
+  const tempoS        = parseFloat(match[1]);
   const velocidadeMs  = parseFloat(match[2]);
   const velocidadeKmh = parseFloat(match[3]);
 
@@ -157,75 +156,72 @@ function adicionarMedicao(tempoS, velocidadeMs, velocidadeKmh) {
   };
 
   historico.push(medicao);
-  somaVelocidades += velocidadeMs;
+  somaVelocidades += velocidadeKmh;   // agora soma em km/h
 
-  // Atualiza recorde
-  if (velocidadeMs > velocidadeMaxima) {
-    velocidadeMaxima = velocidadeMs;
+  if (velocidadeKmh > velocidadeMaxima) {
+    velocidadeMaxima = velocidadeKmh;
     velocidadeMaximaKmh = velocidadeKmh;
   }
 
   // ---- Atualiza cards ----
-  currentSpeed.textContent = velocidadeMs.toFixed(1);
-  currentKmh.textContent   = velocidadeKmh.toFixed(1);
-  recordSpeed.textContent  = velocidadeMaxima.toFixed(1);
-  recordKmh.textContent    = velocidadeMaximaKmh.toFixed(1);
+  currentSpeed.textContent = velocidadeKmh.toFixed(1);                              // km/h (destaque)
+  currentKmh.textContent   = velocidadeMs.toFixed(1);                               // m/s (secundario)
+  recordSpeed.textContent  = velocidadeMaximaKmh.toFixed(1);                        // km/h
+  recordKmh.textContent    = (velocidadeMaximaKmh / 3.6).toFixed(1);                // m/s
   counterEl.textContent    = historico.length;
-  avgSpeed.textContent     = (somaVelocidades / historico.length).toFixed(1);
-  avgKmh.textContent       = ((somaVelocidades / historico.length) * 3.6).toFixed(1);
+  avgSpeed.textContent     = (somaVelocidades / historico.length).toFixed(1);       // km/h
+  avgKmh.textContent       = ((somaVelocidades / historico.length) / 3.6).toFixed(1); // m/s
 
-  // ---- Barra de velocidade ----
-  const pct = Math.min((velocidadeMs / MAX_VELOCIDADE_GRAFICO) * 100, 100);
+  // ---- Barra de velocidade (agora em km/h) ----
+  const pct = Math.min((velocidadeKmh / MAX_VELOCIDADE_GRAFICO) * 100, 100);
   speedBarFill.style.width = pct + '%';
 
-  // ---- Alerta ----
-  if (velocidadeMs >= LIMITE_VELOCIDADE_MS) {
+  // ---- Alerta (agora em km/h) ----
+  if (velocidadeKmh >= LIMITE_VELOCIDADE_KMH) {
     alertBox.classList.remove('hidden');
     setTimeout(() => alertBox.classList.add('hidden'), 3000);
   }
 
-  // ---- Adiciona na tabela ----
+  // ---- Tabela ----
   adicionarLinhaTabela(medicao);
 
-  // ---- Desenha o grafico ----
+  // ---- Grafico ----
   desenharGrafico();
 
-  // ---- Atualiza contador de registros ----
+  // ---- Contador ----
   historyCount.textContent = historico.length + ' registros';
 }
 
 // ==================== TABELA ====================
 function adicionarLinhaTabela(m) {
-  // Remove linha "vazia" se existir
   const emptyRow = historyBody.querySelector('.empty-row');
   if (emptyRow) emptyRow.remove();
 
   const tr = document.createElement('tr');
   tr.className = 'new-row';
 
-  // Classe de cor pela velocidade
+  // Cores de acordo com a velocidade em km/h
   let classeVel = 'speed-slow';
-  if (m.velocidadeMs >= 15) classeVel = 'speed-fast';
-  else if (m.velocidadeMs >= 8) classeVel = 'speed-mid';
+  if (m.velocidadeKmh >= 55) classeVel = 'speed-fast';
+  else if (m.velocidadeKmh >= 30) classeVel = 'speed-mid';
 
   tr.innerHTML = `
     <td>#${String(m.id).padStart(3, '0')}</td>
-    <td class="${classeVel}">${m.velocidadeMs.toFixed(2)}</td>
-    <td>${m.velocidadeKmh.toFixed(2)}</td>
+    <td class="${classeVel}">${m.velocidadeKmh.toFixed(2)}</td>
+    <td>${m.velocidadeMs.toFixed(2)}</td>
     <td>${m.tempoS.toFixed(4)}</td>
     <td>${m.distancia.toFixed(3)}</td>
     <td>${m.hora}</td>
   `;
 
-  // Insere no topo (mais recente primeiro)
   historyBody.insertBefore(tr, historyBody.firstChild);
 }
 
-// ==================== GRAFICO ====================
+// ==================== GRAFICO (agora em km/h) ====================
 function desenharGrafico() {
   const W = canvas.width;
   const H = canvas.height;
-  const pad = { top: 20, right: 20, bottom: 30, left: 45 };
+  const pad = { top: 20, right: 20, bottom: 30, left: 55 };
 
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = '#0a0d12';
@@ -249,10 +245,9 @@ function desenharGrafico() {
     ctx.stroke();
 
     const valor = MAX_VELOCIDADE_GRAFICO * (1 - i / 4);
-    ctx.fillText(valor.toFixed(1) + ' m/s', pad.left - 6, y + 4);
+    ctx.fillText(valor.toFixed(0) + ' km/h', pad.left - 6, y + 4);
   }
 
-  // ---- Pontos ----
   if (historico.length === 0) {
     ctx.fillStyle = '#8b949e';
     ctx.textAlign = 'center';
@@ -261,13 +256,13 @@ function desenharGrafico() {
     return;
   }
 
-  const dados = historico.slice(-50); // ultimas 50
+  const dados = historico.slice(-50);
   const passo = dados.length > 1 ? areaW / (dados.length - 1) : 0;
 
   const pontos = dados.map((m, i) => ({
     x: pad.left + i * passo,
-    y: pad.top + areaH - (Math.min(m.velocidadeMs, MAX_VELOCIDADE_GRAFICO) / MAX_VELOCIDADE_GRAFICO) * areaH,
-    v: m.velocidadeMs
+    y: pad.top + areaH - (Math.min(m.velocidadeKmh, MAX_VELOCIDADE_GRAFICO) / MAX_VELOCIDADE_GRAFICO) * areaH,
+    v: m.velocidadeKmh
   }));
 
   // ---- Area preenchida ----
