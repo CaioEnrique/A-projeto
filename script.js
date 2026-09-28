@@ -172,26 +172,26 @@ function adicionarMedicao(tempoS, velocidadeMs, velocidadeKmh) {
   }
 
   // ---------- CARD VELOCIDADE ATUAL ----------
-  currentSpeed.textContent     = velocidadeKmh.toFixed(1);
-  currentSpeedUnit.textContent = 'km/h';
+  currentSpeed.textContent         = velocidadeKmh.toFixed(1);
+  currentSpeedUnit.textContent     = 'km/h';
   currentSecondary.textContent     = velocidadeMs.toFixed(1);
   currentSecondaryUnit.textContent = 'm/s';
 
   // ---------- CARD RECORDE ----------
-  recordSpeed.textContent     = velocidadeMaximaKmh.toFixed(1);
-  recordSpeedUnit.textContent = 'km/h';
-  recordSecondary.textContent     = (velocidadeMaximaKmh / 3.6).toFixed(1);
-  recordSecondaryUnit.textContent = 'm/s';
+  recordSpeed.textContent          = velocidadeMaximaKmh.toFixed(1);
+  recordSpeedUnit.textContent      = 'km/h';
+  recordSecondary.textContent      = (velocidadeMaximaKmh / 3.6).toFixed(1);
+  recordSecondaryUnit.textContent  = 'm/s';
 
   // ---------- CONTADOR ----------
   counterEl.textContent = historico.length;
 
   // ---------- CARD MEDIA ----------
   const mediaKmh = somaVelocidadesKmh / historico.length;
-  avgSpeed.textContent     = mediaKmh.toFixed(1);
-  avgSpeedUnit.textContent = 'km/h';
-  avgSecondary.textContent     = (mediaKmh / 3.6).toFixed(1);
-  avgSecondaryUnit.textContent = 'm/s';
+  avgSpeed.textContent             = mediaKmh.toFixed(1);
+  avgSpeedUnit.textContent         = 'km/h';
+  avgSecondary.textContent         = (mediaKmh / 3.6).toFixed(1);
+  avgSecondaryUnit.textContent     = 'm/s';
 
   // ---------- BARRA ----------
   const pct = Math.min((velocidadeKmh / MAX_VELOCIDADE_GRAFICO) * 100, 100);
